@@ -1,0 +1,4 @@
+Model,Health_Acc,4Class_Acc,Balanced_Acc,Macro_F1,Time_Sec
+Logistic Regression,0.8352,0.5818,0.5818,0.5788,1.16
+Random Forest,1.0,0.7599,0.7599,0.7555,5.6
+Deep Neural Network (MLP),1.0,0.7676,0.7676,0.7358,12.75

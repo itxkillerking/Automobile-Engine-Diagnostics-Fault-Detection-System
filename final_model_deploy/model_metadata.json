@@ -1,0 +1,13 @@
+﻿{
+    "model_name": "Two-Stage Hybrid Deep Neural Network Engine Fault System",
+    "version": "1.0.0-PROD",
+    "engine_scope": "Opel/Chevrolet C14NE Spark-Ignition Petrol Engine",
+    "healthy_vs_unhealthy_test_accuracy": 100.0,
+    "primary_group_test_accuracy": 99.96,
+    "cleaned_4class_test_accuracy": 94.78,
+    "required_sensors": [
+        "MAP", "TPS", "Force", "Power", "RPM",
+        "Consumption L/H", "Consumption L/100KM",
+        "CO", "HC", "CO2", "O2", "AFR"
+    ]
+}

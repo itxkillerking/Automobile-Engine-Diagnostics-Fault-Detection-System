@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Automobile Engine Diagnostics Fault Detection System &amp; 3D Inspection</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
+        rel="stylesheet" />
+
+    <link rel="stylesheet" href="/css/style.css" />
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+
+<body>
+    <!-- TOP WORKSTATION HEADER -->
+    <header class="topbar">
+        <div class="brand-cluster">
+            <div class="logo-wrap" aria-hidden="true">
+                <img src="/assets/logo.png" alt="ApexBay Telemetry Logo" class="brand-logo"
+                    onload="this.nextElementSibling.style.display='none'"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block'" />
+                <svg class="brand-logo-svg" viewBox="0 0 36 36" fill="none">
+                    <rect x="3" y="3" width="30" height="30" rx="6" stroke="#38BDF8" stroke-width="2" />
+                    <path d="M9 22H13.5L16 13L19.5 25L22.5 17H27" stroke="#F8FAFC" stroke-width="2.4"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <circle cx="27" cy="11" r="2.5" fill="#F59E0B" />
+                </svg>
+            </div>
+            <div class="brand-text">
+                <span class="brand-title">Automobile Engine</span>
+                <span class="brand-sub">Diagnostics &amp; Fault Detection System</span>
+            </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Primary Navigation">
+            <button class="nav-btn active" data-view="live">Diagnostics</button>
+            <button class="nav-btn" data-view="batch">Batch Log (.CSV)</button>
+            <button class="nav-btn" data-view="history">History <span class="log-badge"
+                    id="history-count">0</span></button>
+        </nav>
+
+        <div class="topbar-right">
+            <div class="vehicle-select-wrap">
+                <label for="vehicle-select" class="vehicle-select-label">Vehicle</label>
+                <select id="vehicle-select" class="vehicle-select" aria-label="Select Vehicle">
+                    <option value="coupe" selected>Sports Coupe (V8 Twin-Turbo)</option>
+                    <option value="semi_truck">Heavy Semi-Truck (Diesel I6)</option>
+                    <option value="suv">SUV / 4x4 (V6)</option>
+                </select>
+            </div>
+            <div class="status-indicator" id="system-status-pill">
+                <span class="status-dot"></span>
+                <span id="system-status-text">Connecting</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- VIEW 1: LIVE WORKSHOP DIAGNOSTICS -->
+    <main class="workspace active" id="view-live">
+        <!-- LEFT / MAIN: WORKSHOP BAY + ENGINE BEHAVIOR SUMMARY -->
+        <section class="stage-column">
+            <div class="panel bay-panel">
+                <!-- Flush Top Bay Bar (Clean OEM Readout + Bay Controls) -->
+                <div class="bay-toolbar">
+                    <div class="bay-readout-group">
+                        <div class="status-tag" id="hud-status-badge" data-state="healthy">
+                            <span class="live-dot"></span>
+                            <span id="hud-status-label">Healthy — Normal Idle</span>
+                        </div>
+                        <div class="bay-divider"></div>
+                        <div class="bay-metric">
+                            <span class="metric-key">ENGINE</span>
+                            <span class="metric-val" id="hud-engine-label">4.0L V8 Twin-Turbo</span>
+                        </div>
+                        <div class="bay-divider"></div>
+                        <div class="bay-metric">
+                            <span class="metric-key">SPEED</span>
+                            <span class="metric-val mono"><span id="hud-rpm-val">2,147</span> RPM</span>
+                        </div>
+                    </div>
+
+                    <div class="bay-actions">
+                        <button class="tool-btn" id="btn-toggle-hood">Close Hood</button>
+                        <button class="tool-btn active" id="btn-toggle-xray">X-Ray</button>
+                        <button class="tool-btn" id="btn-extract-engine">Lift Engine</button>
+                        <button class="tool-btn" id="btn-load-glb" title="Import a custom .glb vehicle model">Import
+                            .GLB</button>
+                        <input type="file" id="glb-file-input" accept=".glb,.gltf" hidden />
+                        <button class="tool-btn" id="btn-replay-intro">Replay</button>
+                    </div>
+                </div>
+
+                <!-- Unobstructed 3D Workshop Canvas -->
+                <div class="canvas-stage">
+                    <div id="engine-canvas" class="engine-canvas"></div>
+
+                    <!-- Plausibility Alert (Shown only when sensor input is physically impossible) -->
+                    <div class="plausibility-banner hidden" id="plausibility-banner">
+                        <div class="plausibility-head">Sensor Plausibility Alert</div>
+                        <p id="plausibility-message"></p>
+                    </div>
+                </div>
+
+                <!-- Flush Bottom Bay Dock (Test Cases + Explode Slider) -->
+                <div class="bay-dock">
+
+
+                    <div class="dock-section explode-controls">
+                        <button class="tool-btn" id="btn-toggle-explode">Explode Engine</button>
+                        <input type="range" id="slider-explode" class="explode-slider" min="0" max="100" step="1"
+                            value="0" aria-label="Engine explode percentage" />
+                        <span class="explode-pct mono" id="val-explode-pct">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WORKSHOP SERVICE ASSESSMENT STRIP -->
+            <div class="response-strip">
+                <div class="panel response-tile">
+                    <span class="tile-label">Running Smoothness</span>
+                    <strong class="tile-value" id="perf-smoothness">Steady &amp; Balanced</strong>
+                    <span class="tile-sub" id="perf-smoothness-sub">No abnormal vibration or misfire detected</span>
+                </div>
+                <div class="panel response-tile">
+                    <span class="tile-label">Combustion &amp; Exhaust</span>
+                    <strong class="tile-value" id="perf-combustion">Clean Burn</strong>
+                    <span class="tile-sub" id="perf-combustion-sub">Air-fuel balance within target specification</span>
+                </div>
+                <div class="panel response-tile">
+                    <span class="tile-label">Service Recommendation</span>
+                    <strong class="tile-value" id="perf-action">Routine Service Only</strong>
+                    <span class="tile-sub" id="perf-action-sub">All monitored systems within normal limits</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: DIAGNOSTIC REPORT + SENSOR INPUTS -->
+        <aside class="control-column">
+            <!-- VERDICT PANEL -->
+            <div class="panel verdict-card" id="verdict-card" data-state="healthy">
+                <div class="verdict-header">
+                    <span class="verdict-badge" id="verdict-badge">HEALTHY</span>
+                    <span class="conf-readout mono" id="verdict-conf-pill">99.9% Confidence</span>
+                </div>
+                <h2 class="verdict-title" id="verdict-title">Normal / Healthy Operation</h2>
+                <p class="verdict-desc" id="verdict-desc">
+                    Engine is running within normal operating limits across airflow, fuel delivery, and exhaust
+                    chemistry.
+                </p>
+
+                <div class="alerts-wrap" id="verdict-alerts"></div>
+
+                <div class="verdict-footer">
+                    <span class="verdict-note" id="verdict-note">All sensors inside normal range.</span>
+                    <button class="outline-btn" id="btn-export-txt">Export Report</button>
+                </div>
+            </div>
+
+            <!-- SENSOR CHANNELS PANEL -->
+            <div class="panel sensor-card">
+                <div class="sensor-card-head">
+                    <div>
+                        <h3>Live Sensor Inputs</h3>
+                        <p class="muted-sub">Adjust channels to inspect real-time engine behavior</p>
+                    </div>
+                    <button class="text-btn" id="btn-reset-baseline">Reset</button>
+                </div>
+
+                <div class="sensor-tabs" role="tablist">
+                    <button class="sensor-tab active" data-group="air_load">Air &amp; Load</button>
+                    <button class="sensor-tab" data-group="fuel">Fuel System</button>
+                    <button class="sensor-tab" data-group="exhaust">Exhaust Gas</button>
+                </div>
+
+                <div class="sensor-list" id="sensor-list"></div>
+
+                <div class="sensor-footer">
+                    <label class="switch-row">
+                        <input type="checkbox" id="toggle-autorun" checked />
+                        <span class="switch-track"></span>
+                        <span class="switch-text">Auto-diagnose</span>
+                    </label>
+                    <button class="primary-btn" id="btn-run-diagnosis">Run Check</button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- VIEW 2: BATCH CSV UPLOAD -->
+    <main class="workspace single-page" id="view-batch">
+        <div class="panel page-card">
+            <div class="page-head">
+                <div>
+                    <h2>Batch Vehicle Log Check</h2>
+                    <p class="muted-sub">Upload a recorded 12-sensor CSV file to diagnose multiple readings at once.</p>
+                </div>
+                <button class="primary-btn hidden" id="btn-export-batch-csv">Export Results (.CSV)</button>
+            </div>
+
+            <div class="dropzone" id="csv-dropzone">
+                <input type="file" id="csv-file-input" accept=".csv" hidden />
+                <div class="dropzone-icon">+</div>
+                <h3>Drop a sensor CSV file here, or click to select</h3>
+                <p id="batch-file-status">Requires standard 12-channel sensor columns.</p>
+            </div>
+
+            <div class="kpi-grid hidden" id="batch-kpi-grid">
+                <div class="kpi-box"><span>Total Checked</span><strong id="kpi-total">0</strong></div>
+                <div class="kpi-box kpi-healthy"><span>Healthy</span><strong id="kpi-healthy">0</strong></div>
+                <div class="kpi-box kpi-fault"><span>Rich Mixture</span><strong id="kpi-rich">0</strong></div>
+                <div class="kpi-box kpi-caution"><span>Lean Burn</span><strong id="kpi-lean">0</strong></div>
+                <div class="kpi-box kpi-caution"><span>Weak Ignition</span><strong id="kpi-ignition">0</strong></div>
+            </div>
+
+            <div class="table-wrap hidden" id="batch-table-wrap">
+                <table class="clean-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>RPM</th>
+                            <th>AFR</th>
+                            <th>CO %</th>
+                            <th>HC ppm</th>
+                            <th>Status</th>
+                            <th>Diagnosis</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- VIEW 3: SESSION HISTORY -->
+    <main class="workspace single-page" id="view-history">
+        <div class="panel page-card">
+            <div class="page-head">
+                <div>
+                    <h2>Diagnostic Log</h2>
+                    <p class="muted-sub">Load any saved check to replay its sensor values on the bay vehicle.</p>
+                </div>
+                <button class="outline-btn" id="btn-clear-history">Clear Log</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="clean-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>RPM</th>
+                            <th>AFR</th>
+                            <th>Status</th>
+                            <th>Diagnosis</th>
+                            <th>Confidence</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <tr>
+                            <td colspan="7" class="empty-cell">No diagnostic checks saved yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="/js/app.js"></script>
+</body>
+
+</html>
