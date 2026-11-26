@@ -1,24 +1,23 @@
 import io
 import json
-import os
 import sys
+from pathlib import Path
 from typing import Dict
 
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-# Resolve paths cleanly from D:\ML-PROJECT\web_app\backend\api.py
-BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-WEB_APP_DIR = os.path.dirname(BACKEND_DIR)
-PROJECT_ROOT = os.path.dirname(WEB_APP_DIR)
-FRONTEND_DIR = os.path.join(WEB_APP_DIR, "frontend")
-DEPLOY_DIR = os.path.join(PROJECT_ROOT, "final_model_deploy")
+# Resolve paths relative to this module (cross-platform Linux/macOS/Windows)
+BACKEND_DIR = Path(__file__).resolve().parent
+WEB_APP_DIR = BACKEND_DIR.parent
+PROJECT_ROOT = WEB_APP_DIR.parent
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+DEPLOY_DIR = PROJECT_ROOT / "final_model_deploy"
 
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from final_model_deploy.inference import (
     add_physics_features,
@@ -28,7 +27,7 @@ from final_model_deploy.inference import (
 
 # Load locked ML artifact & metadata once at server startup
 ARTIFACT = load_artifact()
-METADATA_PATH = os.path.join(DEPLOY_DIR, "model_metadata.json")
+METADATA_PATH = DEPLOY_DIR / "model_metadata.json"
 with open(METADATA_PATH, "r", encoding="utf-8-sig") as f:
     MODEL_METADATA = json.load(f)
 
@@ -87,16 +86,6 @@ PRESETS = {
 
 app = FastAPI(title="Engine Diagnostics Telemetry API", version="1.0.0")
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -104,16 +93,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount frontend static assets
-app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
-app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
-app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
-
-
-@app.get("/")
-def serve_frontend():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
 @app.get("/api/config")
@@ -227,3 +206,7 @@ async def predict_batch(file: UploadFile = File(...)):
         "rows": rows_out[:200],
         "truncated": len(rows_out) > 200,
     }
+
+
+# Serve static frontend & index.html after all API routes
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
